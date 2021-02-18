@@ -236,6 +236,8 @@
 		owner.organs |= src
 		for(var/obj/item/organ/organ in src)
 			organ.replaced(owner,src)
+		if(robotic >= ORGAN_ROBOT)
+			owner.refresh_detachable_limb_verbs()
 
 	if(parent_organ)
 		parent = owner.organs_by_name[src.parent_organ]
@@ -1142,7 +1144,7 @@ Note that amputating the affected organ does in fact remove the infection from t
 
 		while(null in owner.internal_organs)
 			owner.internal_organs -= null
-
+		owner.refresh_detachable_limb_verbs()
 	return 1
 
 /obj/item/organ/external/proc/mutate()
@@ -1243,6 +1245,8 @@ Note that amputating the affected organ does in fact remove the infection from t
 			qdel(spark_system)
 		qdel(src)
 
+	if(robotic >= ORGAN_ROBOT)
+		victim.refresh_detachable_limb_verbs()
 	victim.update_icons_body()
 
 /obj/item/organ/external/proc/disfigure(var/type = "brute")

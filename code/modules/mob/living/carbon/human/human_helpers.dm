@@ -109,6 +109,41 @@
 
 	return 0
 
+// Used to check if any bodyparts can be detached and add or remove the attach/detachment verbs as needed.
+/mob/living/carbon/human/proc/get_modular_robotic_limbs()
+	for(var/bp in organs)
+		var/obj/item/organ/external/E = bp
+		if(E.robotic < ORGAN_ROBOT || !E.model)
+			continue
+		var/datum/robolimb/manufacturer = all_robolimbs[E.model]
+		if(istype(manufacturer) && manufacturer.modular_bodyparts)
+			LAZYADD(., E)
+
+// Checks the product of get_modular_robotic_limbs() for conditions needed to act as an attachment point.
+/mob/living/carbon/human/proc/get_modular_robotics_detachable_limbs(var/list/checking, var/return_first_found = FALSE)
+	for(var/bp in checking)
+		var/obj/item/organ/external/E = bp
+		if(E.vital || !E.parent_organ)
+			continue
+		var/obj/item/organ/external/parent = get_organ(E.parent_organ)
+		if(!istype(parent) || parent.robotic < ORGAN_ROBOT)
+			continue
+		LAZYADD(., E)
+		if(return_first_found)
+			break
+
+/mob/living/carbon/human/proc/refresh_detachable_limb_verbs()
+	// For the sake of not having to diddle the organ variables on the species, 
+	// if they have any modular bp at all, we'll just give them the reattach verb 
+	// and let the verb sort out whether or not it works.
+	verbs -= .proc/reattach_limb_verb
+	verbs -= .proc/detach_limb_verb
+	var/list/relevant_limbs = get_modular_robotic_limbs()
+	if(length(relevant_limbs))
+		verbs |= .proc/reattach_limb_verb
+		if(get_modular_robotics_detachable_limbs(relevant_limbs, return_first_found = TRUE))
+			verbs |= .proc/detach_limb_verb
+
 // Would an onlooker know this person is synthetic?
 // Based on sort of logical reasoning, 'Look at head, look at torso'
 /mob/living/carbon/human/proc/looksSynthetic()

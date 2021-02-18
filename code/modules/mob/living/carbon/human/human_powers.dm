@@ -377,3 +377,89 @@
 		E.eye_icon = states[choice]
 		to_chat(src,"<span class='warning'>You set your monitor to display [choice]!</span>")
 		update_icons_body()
+
+// Add or remove robotic limbs; check refresh_detachable_limb_verbs() in human_helpers.dm. 
+/mob/living/carbon/human/proc/reattach_limb_verb()
+	set name = "Reattach Robotic Limb"
+	set category = "IC"
+	set desc = "Reattach one of your robotic limbs."
+	set usr = src
+
+	if(world.time < (last_special + (2 SECONDS)))
+		return FALSE
+
+	var/obj/item/organ/external/E = get_active_hand()
+	if(!istype(E) || E.robotic < ORGAN_ROBOT || !E.model)
+		to_chat(src, SPAN_WARNING("You are not holding an appropriate robotic limb."))
+		return FALSE
+
+	var/datum/robolimb/manufacturer = all_robolimbs[E.model]
+	if(!manufacturer || !manufacturer.modular_bodyparts)
+		to_chat(src, SPAN_WARNING("That limb is not modular and cannot be installed just by hand."))
+		return FALSE
+
+	var/install_to_zone = E.organ_tag
+	if(!isnull(get_organ(install_to_zone)))
+		to_chat(src, SPAN_WARNING("There is already a limb attached at that part of your body."))
+		return FALSE
+
+	if(!do_after(src, 2 SECONDS, E) || get_active_hand() != E || QDELETED(E) || world.time < (last_special + (2 SECONDS)))
+		return FALSE
+
+	if(!isnull(get_organ(install_to_zone)))
+		to_chat(src, SPAN_WARNING("There is already a limb attached at that part of your body."))
+		return FALSE
+
+	last_special = world.time
+	drop_from_inventory(E)
+	E.replaced(src)
+	E.status &= ~ORGAN_CUT_AWAY
+	var/datum/gender/G = gender_datums[gender]
+	visible_message(
+		SPAN_NOTICE("\The [src] attaches \the [E] to [G.his] body!"),
+		SPAN_NOTICE("You attach \the [E] to your body!"))
+	regenerate_icons() // Not sure why this isn't called by removed(), but without it we don't update our limb appearance.
+	return TRUE
+
+// Really awful macro sorry :(
+#define LIMB_REMOVAL_INVALID(MOB, LIMB) (MOB.last_special > world.time || !istype(LIMB) || QDELETED(MOB) || QDELETED(LIMB) || MOB.incapacitated() || MOB.restrained() || LIMB.owner != MOB || !(LIMB in MOB.get_modular_robotics_detachable_limbs(MOB.get_modular_robotic_limbs())))
+/mob/living/carbon/human/proc/detach_limb_verb()
+	set name = "Detach Robotic Limb"
+	set category = "IC"
+	set desc = "Detach one of your robotic limbs."
+	set usr = src
+
+	if(world.time < (last_special + (2 SECONDS)))
+		return FALSE
+
+	if(incapacitated() || restrained())
+		to_chat(src, SPAN_WARNING("You can't do that in your current state!"))
+		return FALSE
+
+	var/list/detachable_limbs = get_modular_robotics_detachable_limbs(get_modular_robotic_limbs())
+	var/obj/item/organ/external/E = input(usr, "Which limb do you wish to detach?", "Robotic Limb Removal") as null|anything in detachable_limbs
+
+	if(LIMB_REMOVAL_INVALID(src, E))
+		return FALSE
+
+	if(E.is_stump() || E.is_broken())
+		to_chat(src, SPAN_WARNING("That limb is too damaged to be removed easily!"))
+		return FALSE
+
+	if(!do_after(src, 2 SECONDS, E) || LIMB_REMOVAL_INVALID(src, E) || world.time < (last_special + (2 SECONDS)))
+		return FALSE
+
+	if(E.is_stump() || E.is_broken())
+		to_chat(src, SPAN_WARNING("That limb is too damaged to be removed easily!"))
+		return FALSE
+
+	last_special = world.time
+	E.removed(src)
+	E.dropInto(loc)
+	put_in_hands(E)
+	var/datum/gender/G = gender_datums[gender]
+	visible_message(
+		SPAN_NOTICE("\The [src] detaches [G.his] [E.name]!"),
+		SPAN_NOTICE("You detach your [E.name]!"))
+	return TRUE
+#undef LIMB_REMOVAL_INVALID
