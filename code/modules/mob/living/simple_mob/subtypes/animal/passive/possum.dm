@@ -75,7 +75,7 @@
 			holder.update_icon()
 
 /datum/ai_holder/simple_mob/passive/possum/poppy
-	var/aaa_words = list(
+	var/static/list/aaa_words = list(
 		"delaminat", 
 		"meteor", 
 		"fire", 
